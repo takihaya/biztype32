@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: biztype32
+    env: node
+    plan: free
+    buildCommand: npm install && npm run build && npm run seed
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+    disk:
+      name: biztype-data
+      mountPath: /opt/render/project/src/server
+      sizeGB: 1
