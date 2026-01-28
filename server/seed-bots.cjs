@@ -5,6 +5,63 @@ const path = require('path');
 
 const db = new Database(path.join(__dirname, 'biztype.db'));
 
+// Create tables first (same as server)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,
+    nickname TEXT NOT NULL,
+    gender TEXT NOT NULL,
+    prefecture TEXT NOT NULL,
+    age_group TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS results (
+    id TEXT PRIMARY KEY,
+    user_id TEXT,
+    type_code TEXT NOT NULL,
+    scores TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    user_agent TEXT,
+    ip_address TEXT,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS matches (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    matched_user_id TEXT NOT NULL,
+    compatibility_score INTEGER,
+    status TEXT DEFAULT 'pending',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (matched_user_id) REFERENCES users(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS messages (
+    id TEXT PRIMARY KEY,
+    match_id TEXT NOT NULL,
+    sender_id TEXT NOT NULL,
+    content TEXT NOT NULL,
+    read_at DATETIME,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (match_id) REFERENCES matches(id),
+    FOREIGN KEY (sender_id) REFERENCES users(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS analytics (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    event_type TEXT NOT NULL,
+    event_data TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_results_type ON results(type_code);
+  CREATE INDEX IF NOT EXISTS idx_results_user ON results(user_id);
+  CREATE INDEX IF NOT EXISTS idx_matches_user ON matches(user_id);
+  CREATE INDEX IF NOT EXISTS idx_messages_match ON messages(match_id);
+`);
+
 // Bot profiles with various types
 const bots = [
   { nickname: 'ゆうき', gender: '男性', prefecture: '東京都', ageGroup: '20代', typeCode: 'EDLVF' },
