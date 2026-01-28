@@ -10,5 +10,5 @@ services:
         value: production
     disk:
       name: biztype-data
-      mountPath: /opt/render/project/src/server
+      mountPath: /opt/render/project/data
       sizeGB: 1

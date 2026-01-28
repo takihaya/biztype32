@@ -2,8 +2,19 @@
 const Database = require('better-sqlite3');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
+const fs = require('fs');
 
-const db = new Database(path.join(__dirname, 'biztype.db'));
+// Use /opt/render/project/data in production for persistent storage
+const dataDir = process.env.NODE_ENV === 'production'
+  ? '/opt/render/project/data'
+  : __dirname;
+
+// Create data directory if it doesn't exist
+if (!fs.existsSync(dataDir)) {
+  fs.mkdirSync(dataDir, { recursive: true });
+}
+
+const db = new Database(path.join(dataDir, 'biztype.db'));
 
 // Create tables first (same as server)
 db.exec(`

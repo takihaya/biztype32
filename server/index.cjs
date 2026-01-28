@@ -11,7 +11,11 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Initialize SQLite database
-const db = new Database(path.join(__dirname, 'biztype.db'));
+// Use /opt/render/project/data in production for persistent storage
+const dataDir = process.env.NODE_ENV === 'production'
+  ? '/opt/render/project/data'
+  : __dirname;
+const db = new Database(path.join(dataDir, 'biztype.db'));
 
 // Create tables
 db.exec(`
