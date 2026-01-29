@@ -3,526 +3,455 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>BizType 32 - Admin Dashboard</title>
+  <title>BizType32 管理画面</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    :root {
-      --primary: #0F172A;
-      --accent: #6366F1;
-      --background: #F8FAFC;
-      --surface: #FFFFFF;
-      --text: #0F172A;
-      --text-secondary: #64748B;
-      --border: #E2E8F0;
-      --success: #10B981;
-      --error: #EF4444;
-    }
-
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: var(--background);
-      color: var(--text);
+      background: #f1f5f9;
+      color: #1e293b;
       line-height: 1.6;
     }
-
     .header {
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      padding: 1rem 2rem;
-      position: sticky;
-      top: 0;
-      z-index: 100;
+      background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+      color: white;
+      padding: 1.5rem 2rem;
+      box-shadow: 0 4px 20px rgba(99, 102, 241, 0.3);
     }
+    .header h1 { font-size: 1.5rem; font-weight: 700; }
+    .header p { opacity: 0.9; font-size: 0.9rem; margin-top: 0.25rem; }
+    .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
 
-    .header-content {
-      max-width: 1400px;
-      margin: 0 auto;
+    /* Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .stat-card {
+      background: white;
+      border-radius: 16px;
+      padding: 1.5rem;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+    }
+    .stat-card.highlight {
+      background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+      color: white;
+    }
+    .stat-label { font-size: 0.85rem; opacity: 0.8; margin-bottom: 0.25rem; }
+    .stat-value { font-size: 2.5rem; font-weight: 800; }
+    .stat-change { font-size: 0.8rem; margin-top: 0.5rem; }
+    .stat-change.positive { color: #10b981; }
+    .stat-card.highlight .stat-change.positive { color: #a5f3fc; }
+
+    /* Charts Section */
+    .section {
+      background: white;
+      border-radius: 16px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+    }
+    .section-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
+      margin-bottom: 1.5rem;
     }
-
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
-
-    .logo-icon {
-      width: 36px;
-      height: 36px;
-      background: linear-gradient(135deg, var(--accent), #4F46E5);
-      color: white;
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 700;
-    }
-
-    .logo-text {
-      font-size: 1.25rem;
-      font-weight: 700;
-    }
-
-    .logo-badge {
-      background: var(--accent);
-      color: white;
-      font-size: 0.6rem;
-      padding: 0.15rem 0.5rem;
-      border-radius: 4px;
-      margin-left: 0.5rem;
-    }
-
-    .header-actions {
-      display: flex;
-      gap: 1rem;
-    }
-
+    .section h2 { font-size: 1.1rem; font-weight: 700; }
+    .section-actions { display: flex; gap: 0.5rem; }
     .btn {
       padding: 0.5rem 1rem;
+      border: none;
       border-radius: 8px;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       font-weight: 600;
       cursor: pointer;
       transition: all 0.2s;
-      border: none;
     }
-
     .btn-primary {
-      background: var(--accent);
+      background: #6366f1;
       color: white;
     }
-
-    .btn-primary:hover {
-      background: #4F46E5;
-    }
-
+    .btn-primary:hover { background: #4f46e5; }
     .btn-secondary {
-      background: var(--surface);
-      color: var(--text);
-      border: 1px solid var(--border);
+      background: #f1f5f9;
+      color: #64748b;
     }
+    .btn-secondary:hover { background: #e2e8f0; }
 
-    .btn-secondary:hover {
-      background: var(--background);
-    }
-
-    .container {
-      max-width: 1400px;
-      margin: 0 auto;
-      padding: 2rem;
-    }
-
-    .stats-grid {
+    /* Type Distribution */
+    .type-grid {
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 1.5rem;
-      margin-bottom: 2rem;
-    }
-
-    .stat-card {
-      background: var(--surface);
-      border-radius: 16px;
-      padding: 1.5rem;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-
-    .stat-label {
-      font-size: 0.8rem;
-      color: var(--text-secondary);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 0.5rem;
-    }
-
-    .stat-value {
-      font-size: 2.5rem;
-      font-weight: 800;
-      color: var(--accent);
-    }
-
-    .stat-change {
-      font-size: 0.8rem;
-      margin-top: 0.5rem;
-    }
-
-    .stat-change.positive {
-      color: var(--success);
-    }
-
-    .dashboard-grid {
-      display: grid;
-      grid-template-columns: 2fr 1fr;
-      gap: 1.5rem;
-    }
-
-    .card {
-      background: var(--surface);
-      border-radius: 16px;
-      padding: 1.5rem;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-
-    .card-title {
-      font-size: 1rem;
-      font-weight: 700;
-      margin-bottom: 1rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-    }
-
-    .type-distribution {
-      display: flex;
-      flex-direction: column;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
       gap: 0.75rem;
     }
-
-    .type-row {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
+    .type-item {
+      background: #f8fafc;
+      border-radius: 10px;
+      padding: 1rem;
+      text-align: center;
+      transition: all 0.2s;
     }
-
+    .type-item:hover {
+      background: #f1f5f9;
+      transform: translateY(-2px);
+    }
     .type-code {
+      font-size: 0.8rem;
       font-weight: 700;
-      font-size: 0.85rem;
-      width: 60px;
-      color: var(--accent);
+      color: #6366f1;
+      background: rgba(99, 102, 241, 0.1);
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      display: inline-block;
+      margin-bottom: 0.5rem;
     }
-
-    .type-bar {
-      flex: 1;
-      height: 24px;
-      background: var(--border);
-      border-radius: 12px;
-      overflow: hidden;
-    }
-
-    .type-bar-fill {
-      height: 100%;
-      background: linear-gradient(90deg, var(--accent), #818CF8);
-      border-radius: 12px;
-      transition: width 0.5s ease;
-    }
-
     .type-count {
-      font-size: 0.85rem;
-      color: var(--text-secondary);
-      width: 50px;
-      text-align: right;
+      font-size: 1.5rem;
+      font-weight: 800;
+      color: #1e293b;
+    }
+    .type-percent {
+      font-size: 0.75rem;
+      color: #64748b;
     }
 
-    .results-table {
+    /* Users Table */
+    .table-container {
+      overflow-x: auto;
+    }
+    table {
       width: 100%;
       border-collapse: collapse;
     }
-
-    .results-table th,
-    .results-table td {
-      padding: 0.75rem;
+    th, td {
+      padding: 1rem;
       text-align: left;
-      border-bottom: 1px solid var(--border);
+      border-bottom: 1px solid #e2e8f0;
     }
-
-    .results-table th {
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      color: var(--text-secondary);
+    th {
+      background: #f8fafc;
       font-weight: 600;
+      font-size: 0.85rem;
+      color: #64748b;
     }
-
-    .results-table tr:hover {
-      background: var(--background);
-    }
-
-    .type-badge {
+    tr:hover { background: #f8fafc; }
+    .badge {
       display: inline-block;
-      background: linear-gradient(135deg, var(--accent), #4F46E5);
-      color: white;
-      padding: 0.25rem 0.75rem;
-      border-radius: 50px;
-      font-size: 0.8rem;
-      font-weight: 600;
-    }
-
-    .delete-btn {
-      background: none;
-      border: none;
-      color: var(--error);
-      cursor: pointer;
-      font-size: 0.8rem;
       padding: 0.25rem 0.5rem;
       border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
     }
+    .badge-primary { background: #ede9fe; color: #6366f1; }
+    .badge-success { background: #d1fae5; color: #059669; }
+    .badge-warning { background: #fef3c7; color: #d97706; }
 
-    .delete-btn:hover {
-      background: #FEE2E2;
-    }
-
-    .pagination {
+    /* Activity Feed */
+    .activity-list {
       display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    .activity-item {
+      display: flex;
+      gap: 1rem;
+      padding: 1rem;
+      background: #f8fafc;
+      border-radius: 10px;
+    }
+    .activity-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
       justify-content: center;
-      gap: 0.5rem;
-      margin-top: 1rem;
+      font-size: 1.25rem;
     }
+    .activity-icon.user { background: #dbeafe; }
+    .activity-icon.match { background: #fce7f3; }
+    .activity-icon.message { background: #d1fae5; }
+    .activity-content { flex: 1; }
+    .activity-title { font-weight: 600; font-size: 0.9rem; }
+    .activity-time { font-size: 0.8rem; color: #64748b; }
 
-    .page-btn {
-      padding: 0.5rem 1rem;
-      border: 1px solid var(--border);
-      background: var(--surface);
-      border-radius: 8px;
-      cursor: pointer;
+    /* Demographics */
+    .demo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1.5rem;
     }
-
-    .page-btn:hover {
-      background: var(--background);
+    .demo-section h4 {
+      font-size: 0.9rem;
+      color: #64748b;
+      margin-bottom: 1rem;
     }
-
-    .page-btn.active {
-      background: var(--accent);
-      color: white;
-      border-color: var(--accent);
+    .demo-bar {
+      margin-bottom: 0.75rem;
+    }
+    .demo-bar-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.85rem;
+      margin-bottom: 0.25rem;
+    }
+    .demo-bar-track {
+      height: 8px;
+      background: #e2e8f0;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    .demo-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #6366f1, #8b5cf6);
+      border-radius: 4px;
+      transition: width 0.5s ease;
     }
 
     .loading {
-      text-align: center;
-      padding: 2rem;
-      color: var(--text-secondary);
+      display: flex;
+      justify-content: center;
+      padding: 3rem;
     }
-
-    @media (max-width: 1024px) {
-      .stats-grid {
-        grid-template-columns: repeat(2, 1fr);
-      }
-
-      .dashboard-grid {
-        grid-template-columns: 1fr;
-      }
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid #e2e8f0;
+      border-top-color: #6366f1;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
     }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
-    @media (max-width: 640px) {
-      .stats-grid {
-        grid-template-columns: 1fr;
-      }
-
-      .header-content {
-        flex-direction: column;
-        gap: 1rem;
-      }
+    @media (max-width: 768px) {
+      .container { padding: 1rem; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .stat-value { font-size: 1.75rem; }
     }
   </style>
 </head>
 <body>
-  <header class="header">
-    <div class="header-content">
-      <div class="logo">
-        <div class="logo-icon">B</div>
-        <span class="logo-text">BizType</span>
-        <span class="logo-badge">ADMIN</span>
-      </div>
-      <div class="header-actions">
-        <button class="btn btn-secondary" onclick="exportData()">
-          Export JSON
-        </button>
-        <button class="btn btn-primary" onclick="refreshData()">
-          Refresh
-        </button>
-      </div>
-    </div>
-  </header>
+  <div class="header">
+    <h1>BizType32 管理画面</h1>
+    <p>ダッシュボード</p>
+  </div>
 
   <div class="container">
-    <div class="stats-grid" id="stats-grid">
-      <div class="stat-card">
-        <div class="stat-label">Total Results</div>
-        <div class="stat-value" id="total-count">-</div>
+    <div class="stats-grid" id="stats">
+      <div class="stat-card highlight">
+        <div class="stat-label">総ユーザー数</div>
+        <div class="stat-value" id="totalUsers">-</div>
+        <div class="stat-change positive" id="todayUsers">本日 +0</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Today</div>
-        <div class="stat-value" id="today-count">-</div>
+        <div class="stat-label">診断完了</div>
+        <div class="stat-value" id="totalResults">-</div>
+        <div class="stat-change positive" id="weekResults">今週 +0</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">This Week</div>
-        <div class="stat-value" id="week-count">-</div>
+        <div class="stat-label">マッチング数</div>
+        <div class="stat-value" id="totalMatches">-</div>
       </div>
       <div class="stat-card">
-        <div class="stat-label">Most Common Type</div>
-        <div class="stat-value" id="top-type" style="font-size: 1.5rem;">-</div>
+        <div class="stat-label">メッセージ数</div>
+        <div class="stat-value" id="totalMessages">-</div>
       </div>
     </div>
 
-    <div class="dashboard-grid">
-      <div class="card">
-        <h2 class="card-title">Recent Results</h2>
-        <div id="results-container">
-          <p class="loading">Loading...</p>
-        </div>
-        <div class="pagination" id="pagination"></div>
+    <div class="section">
+      <div class="section-header">
+        <h2>タイプ分布</h2>
       </div>
+      <div class="type-grid" id="typeDistribution">
+        <div class="loading"><div class="spinner"></div></div>
+      </div>
+    </div>
 
-      <div class="card">
-        <h2 class="card-title">Type Distribution</h2>
-        <div class="type-distribution" id="type-distribution">
-          <p class="loading">Loading...</p>
+    <div class="section">
+      <div class="section-header">
+        <h2>ユーザー属性</h2>
+      </div>
+      <div class="demo-grid" id="demographics">
+        <div class="demo-section">
+          <h4>業界分布</h4>
+          <div id="industryDist"></div>
         </div>
+        <div class="demo-section">
+          <h4>年代分布</h4>
+          <div id="ageDist"></div>
+        </div>
+        <div class="demo-section">
+          <h4>地域分布（上位5）</h4>
+          <div id="prefectureDist"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-header">
+        <h2>最近のユーザー</h2>
+        <div class="section-actions">
+          <button class="btn btn-primary" onclick="exportData()">エクスポート</button>
+        </div>
+      </div>
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>ユーザー</th>
+              <th>タイプ</th>
+              <th>業界</th>
+              <th>職種</th>
+              <th>地域</th>
+              <th>登録日</th>
+            </tr>
+          </thead>
+          <tbody id="userTable">
+            <tr><td colspan="6" class="loading"><div class="spinner"></div></td></tr>
+          </tbody>
+        </table>
       </div>
     </div>
   </div>
 
   <script>
-    const API_BASE = 'http://localhost:3001/api';
-    let currentPage = 1;
-
-    async function fetchStats() {
+    async function loadStats() {
       try {
-        const res = await fetch(`${API_BASE}/admin/stats`);
+        const res = await fetch('/api/admin/stats');
         const data = await res.json();
 
-        document.getElementById('total-count').textContent = data.total.toLocaleString();
-        document.getElementById('today-count').textContent = data.todayCount.toLocaleString();
-        document.getElementById('week-count').textContent = data.weekCount.toLocaleString();
+        document.getElementById('totalUsers').textContent = data.totalUsers.toLocaleString();
+        document.getElementById('totalResults').textContent = data.total.toLocaleString();
+        document.getElementById('totalMatches').textContent = data.totalMatches.toLocaleString();
+        document.getElementById('totalMessages').textContent = data.totalMessages.toLocaleString();
+        document.getElementById('todayUsers').textContent = `本日 +${data.todayCount}`;
+        document.getElementById('weekResults').textContent = `今週 +${data.weekCount}`;
 
+        // Type distribution
+        const typeGrid = document.getElementById('typeDistribution');
         if (data.typeDistribution.length > 0) {
-          document.getElementById('top-type').textContent = data.typeDistribution[0].type_code;
+          const maxCount = Math.max(...data.typeDistribution.map(t => t.count));
+          typeGrid.innerHTML = data.typeDistribution.map(t => `
+            <div class="type-item">
+              <div class="type-code">${t.type_code}</div>
+              <div class="type-count">${t.count}</div>
+              <div class="type-percent">${((t.count / data.total) * 100).toFixed(1)}%</div>
+            </div>
+          `).join('');
+        } else {
+          typeGrid.innerHTML = '<p style="color:#64748b;text-align:center;padding:2rem;">データがありません</p>';
         }
-
-        renderTypeDistribution(data.typeDistribution, data.total);
-      } catch (error) {
-        console.error('Failed to fetch stats:', error);
+      } catch (e) {
+        console.error('Failed to load stats:', e);
       }
     }
 
-    function renderTypeDistribution(types, total) {
-      const container = document.getElementById('type-distribution');
+    async function loadUsers() {
+      try {
+        const res = await fetch('/api/admin/results?limit=20');
+        const data = await res.json();
 
-      if (types.length === 0) {
-        container.innerHTML = '<p style="color: var(--text-secondary);">No data yet</p>';
-        return;
+        const tbody = document.getElementById('userTable');
+        if (data.results.length > 0) {
+          tbody.innerHTML = data.results.map(r => `
+            <tr>
+              <td>
+                <strong>${r.nickname || '匿名'}</strong>
+                <br><span style="font-size:0.8rem;color:#64748b">${r.gender || ''}</span>
+              </td>
+              <td><span class="badge badge-primary">${r.type_code}</span></td>
+              <td>${r.industry || '-'}</td>
+              <td>${r.job_type || '-'}</td>
+              <td>${r.prefecture || '-'}</td>
+              <td style="font-size:0.85rem;color:#64748b">${new Date(r.created_at).toLocaleDateString('ja-JP')}</td>
+            </tr>
+          `).join('');
+
+          // Demographics
+          calculateDemographics(data.results);
+        } else {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#64748b;padding:2rem;">ユーザーがいません</td></tr>';
+        }
+      } catch (e) {
+        console.error('Failed to load users:', e);
       }
+    }
 
-      const maxCount = types[0]?.count || 1;
+    function calculateDemographics(results) {
+      // Industry distribution
+      const industries = {};
+      const ages = {};
+      const prefectures = {};
 
-      container.innerHTML = types.slice(0, 10).map(type => `
-        <div class="type-row">
-          <span class="type-code">${type.type_code}</span>
-          <div class="type-bar">
-            <div class="type-bar-fill" style="width: ${(type.count / maxCount) * 100}%"></div>
+      results.forEach(r => {
+        if (r.industry) industries[r.industry] = (industries[r.industry] || 0) + 1;
+        if (r.age_group) ages[r.age_group] = (ages[r.age_group] || 0) + 1;
+        if (r.prefecture) prefectures[r.prefecture] = (prefectures[r.prefecture] || 0) + 1;
+      });
+
+      const total = results.length;
+
+      // Render industry
+      const industryDiv = document.getElementById('industryDist');
+      const sortedIndustries = Object.entries(industries).sort((a, b) => b[1] - a[1]).slice(0, 5);
+      industryDiv.innerHTML = sortedIndustries.map(([name, count]) => `
+        <div class="demo-bar">
+          <div class="demo-bar-header">
+            <span>${name}</span>
+            <span>${count}人 (${((count/total)*100).toFixed(0)}%)</span>
           </div>
-          <span class="type-count">${type.count}</span>
+          <div class="demo-bar-track">
+            <div class="demo-bar-fill" style="width:${(count/total)*100}%"></div>
+          </div>
+        </div>
+      `).join('');
+
+      // Render ages
+      const ageDiv = document.getElementById('ageDist');
+      const ageOrder = ['10代', '20代', '30代', '40代', '50代', '60代以上'];
+      ageDiv.innerHTML = ageOrder.filter(a => ages[a]).map(name => `
+        <div class="demo-bar">
+          <div class="demo-bar-header">
+            <span>${name}</span>
+            <span>${ages[name]}人</span>
+          </div>
+          <div class="demo-bar-track">
+            <div class="demo-bar-fill" style="width:${(ages[name]/total)*100}%"></div>
+          </div>
+        </div>
+      `).join('');
+
+      // Render prefectures
+      const prefDiv = document.getElementById('prefectureDist');
+      const sortedPrefs = Object.entries(prefectures).sort((a, b) => b[1] - a[1]).slice(0, 5);
+      prefDiv.innerHTML = sortedPrefs.map(([name, count]) => `
+        <div class="demo-bar">
+          <div class="demo-bar-header">
+            <span>${name}</span>
+            <span>${count}人</span>
+          </div>
+          <div class="demo-bar-track">
+            <div class="demo-bar-fill" style="width:${(count/total)*100}%"></div>
+          </div>
         </div>
       `).join('');
     }
 
-    async function fetchResults(page = 1) {
-      try {
-        const res = await fetch(`${API_BASE}/admin/results?page=${page}&limit=20`);
-        const data = await res.json();
-
-        renderResults(data.results);
-        renderPagination(data.pagination);
-        currentPage = page;
-      } catch (error) {
-        console.error('Failed to fetch results:', error);
-        document.getElementById('results-container').innerHTML =
-          '<p class="loading">Failed to load data. Is the server running?</p>';
-      }
-    }
-
-    function renderResults(results) {
-      const container = document.getElementById('results-container');
-
-      if (results.length === 0) {
-        container.innerHTML = '<p style="color: var(--text-secondary);">No results yet</p>';
-        return;
-      }
-
-      container.innerHTML = `
-        <table class="results-table">
-          <thead>
-            <tr>
-              <th>Type</th>
-              <th>Scores</th>
-              <th>Date</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${results.map(r => `
-              <tr>
-                <td><span class="type-badge">${r.type_code}</span></td>
-                <td style="font-size: 0.8rem; color: var(--text-secondary);">
-                  E/I: ${r.scores.EI}, D/A: ${r.scores.DA}, L/S: ${r.scores.LS}, V/P: ${r.scores.VP}, F/R: ${r.scores.FR}
-                </td>
-                <td style="font-size: 0.85rem;">${new Date(r.created_at).toLocaleString('ja-JP')}</td>
-                <td>
-                  <button class="delete-btn" onclick="deleteResult('${r.id}')">Delete</button>
-                </td>
-              </tr>
-            `).join('')}
-          </tbody>
-        </table>
-      `;
-    }
-
-    function renderPagination(pagination) {
-      const container = document.getElementById('pagination');
-
-      if (pagination.totalPages <= 1) {
-        container.innerHTML = '';
-        return;
-      }
-
-      let html = '';
-
-      if (pagination.page > 1) {
-        html += `<button class="page-btn" onclick="fetchResults(${pagination.page - 1})">Prev</button>`;
-      }
-
-      for (let i = 1; i <= pagination.totalPages && i <= 5; i++) {
-        html += `<button class="page-btn ${i === pagination.page ? 'active' : ''}" onclick="fetchResults(${i})">${i}</button>`;
-      }
-
-      if (pagination.page < pagination.totalPages) {
-        html += `<button class="page-btn" onclick="fetchResults(${pagination.page + 1})">Next</button>`;
-      }
-
-      container.innerHTML = html;
-    }
-
-    async function deleteResult(id) {
-      if (!confirm('Are you sure you want to delete this result?')) return;
-
-      try {
-        await fetch(`${API_BASE}/admin/results/${id}`, { method: 'DELETE' });
-        refreshData();
-      } catch (error) {
-        console.error('Failed to delete:', error);
-        alert('Failed to delete result');
-      }
-    }
-
     function exportData() {
-      window.open(`${API_BASE}/admin/export`, '_blank');
+      window.location.href = '/api/admin/export';
     }
 
-    function refreshData() {
-      fetchStats();
-      fetchResults(currentPage);
-    }
-
-    // Initial load
-    fetchStats();
-    fetchResults();
+    loadStats();
+    loadUsers();
 
     // Auto refresh every 30 seconds
-    setInterval(refreshData, 30000);
+    setInterval(() => {
+      loadStats();
+      loadUsers();
+    }, 30000);
   </script>
 </body>
 </html>

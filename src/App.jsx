@@ -16,31 +16,55 @@ const prefectures = [
   '熊本県', '大分県', '宮崎県', '鹿児島県', '沖縄県'
 ]
 
+const industries = [
+  'IT・通信', '金融・保険', 'コンサルティング', 'メーカー', '商社',
+  '広告・メディア', '人材', '不動産', '医療・福祉', '教育',
+  '小売・流通', 'サービス', '官公庁・団体', 'その他'
+]
+
+const jobTypes = [
+  '経営・経営企画', '営業', 'マーケティング', '企画・事業開発',
+  'エンジニア', 'デザイナー', '人事・総務', '経理・財務',
+  'カスタマーサポート', 'コンサルタント', '研究・開発', 'その他'
+]
+
 function App() {
-  // Screen states
-  const [screen, setScreen] = useState('start') // start, register, question, loading, result, chat
+  // Screen states: start, question, loading, result, register, mypage, chat
+  const [screen, setScreen] = useState('start')
 
   // User state
   const [userId, setUserId] = useState(null)
-  const [userProfile, setUserProfile] = useState({ nickname: '', gender: '', prefecture: '', ageGroup: '' })
+  const [userProfile, setUserProfile] = useState({
+    nickname: '',
+    gender: '',
+    prefecture: '',
+    ageGroup: '',
+    industry: '',
+    jobType: '',
+    experience: '',
+    bio: ''
+  })
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
 
   // Quiz state
   const [currentQuestion, setCurrentQuestion] = useState(0)
   const [scores, setScores] = useState({ EI: 0, DA: 0, LS: 0, VP: 0, FR: 0 })
   const [result, setResult] = useState(null)
   const [chartAnimated, setChartAnimated] = useState(false)
+  const [showFullResult, setShowFullResult] = useState(false)
 
   // UI state
   const [showShareMenu, setShowShareMenu] = useState(false)
-  const [activeTab, setActiveTab] = useState('overview')
+  const [activeTab, setActiveTab] = useState('profile') // profile, matching, talk
   const resultRef = useRef(null)
 
   // Matching state
-  const [matchCandidates, setMatchCandidates] = useState([]) // 候補者リスト
-  const [selectedCandidates, setSelectedCandidates] = useState([]) // 選択した候補者
-  const [confirmedMatches, setConfirmedMatches] = useState([]) // 確定したマッチング
+  const [matchCandidates, setMatchCandidates] = useState([])
+  const [selectedCandidates, setSelectedCandidates] = useState([])
+  const [confirmedMatches, setConfirmedMatches] = useState([])
   const [matchesLoading, setMatchesLoading] = useState(false)
-  const [showCandidates, setShowCandidates] = useState(false) // 候補者表示フラグ
+  const [showCandidates, setShowCandidates] = useState(false)
+  const [autoShowMatching, setAutoShowMatching] = useState(false)
 
   // Chat state
   const [activeChat, setActiveChat] = useState(null)
@@ -56,15 +80,17 @@ function App() {
     const savedProfile = localStorage.getItem('biztype_profile')
     const savedResult = localStorage.getItem('biztype_result')
     const savedMatches = localStorage.getItem('biztype_confirmed_matches')
+    const loggedIn = localStorage.getItem('biztype_logged_in')
 
-    if (savedUserId && savedProfile && savedResult) {
+    if (loggedIn && savedUserId && savedProfile && savedResult) {
       setUserId(savedUserId)
       setUserProfile(JSON.parse(savedProfile))
       setResult(JSON.parse(savedResult))
       if (savedMatches) {
         setConfirmedMatches(JSON.parse(savedMatches))
       }
-      setScreen('result')
+      setIsLoggedIn(true)
+      setScreen('mypage')
       setChartAnimated(true)
     }
   }, [])
@@ -109,40 +135,16 @@ function App() {
     return () => clearInterval(interval)
   }, [confirmedMatches, userId])
 
+  // Auto fetch matches when showing matching tab
+  useEffect(() => {
+    if (autoShowMatching && userId && !userId.startsWith('local_')) {
+      fetchMatchCandidates()
+      setAutoShowMatching(false)
+    }
+  }, [autoShowMatching, userId])
+
   const handleStart = () => {
-    setScreen('register')
-  }
-
-  const handleRegister = async (e) => {
-    e.preventDefault()
-
-    if (!userProfile.nickname || !userProfile.gender || !userProfile.prefecture) {
-      alert('全ての項目を入力してください')
-      return
-    }
-
-    try {
-      const response = await fetch(`${API_BASE}/users`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(userProfile)
-      })
-
-      const data = await response.json()
-
-      if (data.userId) {
-        setUserId(data.userId)
-        localStorage.setItem('biztype_user_id', data.userId)
-        localStorage.setItem('biztype_profile', JSON.stringify(userProfile))
-        setScreen('question')
-      }
-    } catch (error) {
-      console.error('Registration failed:', error)
-      // Continue anyway with local-only mode
-      const tempId = 'local_' + Date.now()
-      setUserId(tempId)
-      setScreen('question')
-    }
+    setScreen('question')
   }
 
   const handleAnswer = (value) => {
@@ -170,22 +172,59 @@ function App() {
     setResult(resultData)
     localStorage.setItem('biztype_result', JSON.stringify(resultData))
     setScreen('result')
-    setActiveTab('overview')
     setTimeout(() => setChartAnimated(true), 300)
+  }
 
-    // Save result to backend
+  const handleGoToRegister = () => {
+    setScreen('register')
+  }
+
+  const handleRegister = async (e) => {
+    e.preventDefault()
+
+    if (!userProfile.nickname || !userProfile.gender || !userProfile.prefecture) {
+      alert('必須項目を入力してください')
+      return
+    }
+
     try {
-      await fetch(`${API_BASE}/results`, {
+      const response = await fetch(`${API_BASE}/users`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ typeCode, scores: finalScores, userId })
+        body: JSON.stringify(userProfile)
       })
+
+      const data = await response.json()
+
+      if (data.userId) {
+        setUserId(data.userId)
+        localStorage.setItem('biztype_user_id', data.userId)
+        localStorage.setItem('biztype_profile', JSON.stringify(userProfile))
+        localStorage.setItem('biztype_logged_in', 'true')
+        setIsLoggedIn(true)
+
+        // Save result to backend
+        await fetch(`${API_BASE}/results`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            typeCode: result.type,
+            scores: result.scores,
+            userId: data.userId
+          })
+        })
+
+        // Go to mypage and auto-show matching
+        setScreen('mypage')
+        setActiveTab('matching')
+        setAutoShowMatching(true)
+      }
     } catch (error) {
-      console.warn('Could not save result:', error)
+      console.error('Registration failed:', error)
+      alert('登録に失敗しました。もう一度お試しください。')
     }
   }
 
-  // マッチング候補を取得
   const fetchMatchCandidates = async () => {
     if (!userId || userId.startsWith('local_')) return
 
@@ -193,7 +232,6 @@ function App() {
     try {
       const response = await fetch(`${API_BASE}/matches/${userId}`)
       const data = await response.json()
-      // 既に確定済みのユーザーを除外
       const confirmedIds = confirmedMatches.map(m => m.id)
       const candidates = (data.matches || []).filter(m => !confirmedIds.includes(m.id))
       setMatchCandidates(candidates)
@@ -205,7 +243,6 @@ function App() {
     }
   }
 
-  // 候補者を選択/解除
   const toggleCandidateSelection = (candidate) => {
     setSelectedCandidates(prev => {
       const isSelected = prev.some(c => c.id === candidate.id)
@@ -217,7 +254,6 @@ function App() {
     })
   }
 
-  // マッチングを確定
   const confirmMatches = () => {
     if (selectedCandidates.length === 0) {
       alert('相手を選択してください')
@@ -230,7 +266,7 @@ function App() {
     setSelectedCandidates([])
     setShowCandidates(false)
     setMatchCandidates([])
-    setActiveTab('talk') // トークタブに移動
+    setActiveTab('talk')
   }
 
   const fetchMessages = async (matchId) => {
@@ -276,18 +312,18 @@ function App() {
     }
   }
 
-  const handleBackToResult = () => {
-    setScreen('result')
+  const handleBackToMypage = () => {
+    setScreen('mypage')
     setActiveChat(null)
     setMessages([])
-    setActiveTab('talk')
   }
 
-  const handleRestart = () => {
+  const handleLogout = () => {
     localStorage.removeItem('biztype_user_id')
     localStorage.removeItem('biztype_profile')
     localStorage.removeItem('biztype_result')
     localStorage.removeItem('biztype_confirmed_matches')
+    localStorage.removeItem('biztype_logged_in')
     setScreen('start')
     setCurrentQuestion(0)
     setScores({ EI: 0, DA: 0, LS: 0, VP: 0, FR: 0 })
@@ -295,11 +331,15 @@ function App() {
     setChartAnimated(false)
     setShowShareMenu(false)
     setUserId(null)
-    setUserProfile({ nickname: '', gender: '', prefecture: '', ageGroup: '' })
+    setUserProfile({
+      nickname: '', gender: '', prefecture: '', ageGroup: '',
+      industry: '', jobType: '', experience: '', bio: ''
+    })
     setMatchCandidates([])
     setSelectedCandidates([])
     setConfirmedMatches([])
     setShowCandidates(false)
+    setIsLoggedIn(false)
   }
 
   const getScorePercentage = (dimension, score) => {
@@ -327,7 +367,7 @@ function App() {
     setShowShareMenu(false)
   }
 
-  const handleDownloadPDF = async () => {
+  const handleDownloadImage = async () => {
     const element = resultRef.current
     if (!element) return
 
@@ -352,14 +392,22 @@ function App() {
     <div className="app">
       <header className="header">
         <div className="header-content">
-          <div className="logo" onClick={() => result ? setScreen('result') : null} style={{ cursor: result ? 'pointer' : 'default' }}>
+          <div className="logo" onClick={() => isLoggedIn ? setScreen('mypage') : null} style={{ cursor: isLoggedIn ? 'pointer' : 'default' }}>
             <span className="logo-icon">B</span>
             <span className="logo-text">BizType</span>
             <span className="logo-badge">32</span>
           </div>
-          {userId && userProfile.nickname && (
-            <div className="user-info">
-              <span className="user-name">{userProfile.nickname}</span>
+          {isLoggedIn && (
+            <div className="header-nav">
+              <button
+                className={`nav-btn ${screen === 'mypage' ? 'active' : ''}`}
+                onClick={() => setScreen('mypage')}
+              >
+                マイページ
+              </button>
+              <button className="nav-btn logout" onClick={handleLogout}>
+                ログアウト
+              </button>
             </div>
           )}
         </div>
@@ -432,77 +480,6 @@ function App() {
           </div>
         )}
 
-        {/* Registration Screen */}
-        {screen === 'register' && (
-          <div className="register-screen">
-            <h2 className="register-title">プロフィール登録</h2>
-            <p className="register-subtitle">マッチング機能を利用するための情報を入力してください</p>
-
-            <form className="register-form" onSubmit={handleRegister}>
-              <div className="form-group">
-                <label>ニックネーム</label>
-                <input
-                  type="text"
-                  value={userProfile.nickname}
-                  onChange={(e) => setUserProfile({ ...userProfile, nickname: e.target.value })}
-                  placeholder="表示名を入力"
-                  maxLength={20}
-                  required
-                />
-              </div>
-
-              <div className="form-group">
-                <label>性別</label>
-                <div className="radio-group">
-                  {['男性', '女性', 'その他'].map(g => (
-                    <label key={g} className={`radio-option ${userProfile.gender === g ? 'selected' : ''}`}>
-                      <input
-                        type="radio"
-                        name="gender"
-                        value={g}
-                        checked={userProfile.gender === g}
-                        onChange={(e) => setUserProfile({ ...userProfile, gender: e.target.value })}
-                      />
-                      <span>{g}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label>都道府県</label>
-                <select
-                  value={userProfile.prefecture}
-                  onChange={(e) => setUserProfile({ ...userProfile, prefecture: e.target.value })}
-                  required
-                >
-                  <option value="">選択してください</option>
-                  {prefectures.map(p => (
-                    <option key={p} value={p}>{p}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label>年代（任意）</label>
-                <select
-                  value={userProfile.ageGroup}
-                  onChange={(e) => setUserProfile({ ...userProfile, ageGroup: e.target.value })}
-                >
-                  <option value="">選択してください</option>
-                  {['10代', '20代', '30代', '40代', '50代', '60代以上'].map(a => (
-                    <option key={a} value={a}>{a}</option>
-                  ))}
-                </select>
-              </div>
-
-              <button type="submit" className="register-button">
-                診断を開始する
-              </button>
-            </form>
-          </div>
-        )}
-
         {/* Question Screen */}
         {screen === 'question' && (
           <div className="question-screen" key={currentQuestion}>
@@ -562,10 +539,9 @@ function App() {
           </div>
         )}
 
-        {/* Result Screen */}
+        {/* Result Screen (Before Registration) */}
         {screen === 'result' && result && typeData && (
           <div className="result-screen">
-            {/* Hero Section */}
             <div className="result-hero" ref={resultRef}>
               <div className="hero-background" style={{ background: typeData.gradientStart }}></div>
               <div className="hero-content">
@@ -574,430 +550,501 @@ function App() {
                     typeCode={result.type}
                     gradientStart={typeData.gradientStart}
                     gradientEnd={typeData.gradientEnd}
-                    size={180}
+                    size={160}
                   />
                 </div>
                 <div className="hero-info">
                   <div className="type-badge">{result.type}</div>
                   <h1 className="type-name">{typeData.name}</h1>
                   <p className="type-subtitle">{typeData.subtitle}</p>
-                  <p className="type-summary">{typeData.summary}</p>
                 </div>
               </div>
             </div>
 
+            <div className="result-summary-card">
+              <p className="type-summary">{typeData.summary}</p>
+
+              {!showFullResult ? (
+                <button className="show-more-btn" onClick={() => setShowFullResult(true)}>
+                  詳細を見る ▼
+                </button>
+              ) : (
+                <div className="result-details">
+                  <div className="detail-section">
+                    <h3><span className="icon">💪</span>強み</h3>
+                    <ul>
+                      {typeData.strengths.map((s, i) => <li key={i}>{s}</li>)}
+                    </ul>
+                  </div>
+                  <div className="detail-section">
+                    <h3><span className="icon">⚠️</span>注意点</h3>
+                    <ul>
+                      {typeData.weaknesses.map((w, i) => <li key={i}>{w}</li>)}
+                    </ul>
+                  </div>
+                  <button className="show-more-btn" onClick={() => setShowFullResult(false)}>
+                    閉じる ▲
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* CTA to Register */}
+            <div className="result-cta">
+              <div className="cta-content">
+                <h2>🎉 診断完了！</h2>
+                <p>あなたと相性の良いビジネスパーソンを探しましょう</p>
+                <div className="cta-benefits">
+                  <div className="benefit">✓ 相性の良い人とマッチング</div>
+                  <div className="benefit">✓ メッセージでやり取り</div>
+                  <div className="benefit">✓ 完全無料で利用可能</div>
+                </div>
+              </div>
+              <button className="cta-button" onClick={handleGoToRegister}>
+                <span>無料会員登録してマッチング</span>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+              </button>
+              <p className="cta-note">30秒で完了・メールアドレス不要</p>
+            </div>
+
+            <div className="result-share-actions">
+              <button className="share-btn" onClick={() => setShowShareMenu(!showShareMenu)}>
+                結果をシェア
+              </button>
+              {showShareMenu && (
+                <div className="share-menu">
+                  <button onClick={() => handleShare('twitter')}>X (Twitter)</button>
+                  <button onClick={() => handleShare('facebook')}>Facebook</button>
+                  <button onClick={() => handleShare('line')}>LINE</button>
+                </div>
+              )}
+              <button className="save-btn" onClick={handleDownloadImage}>
+                画像保存
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Registration Screen */}
+        {screen === 'register' && (
+          <div className="register-screen">
+            <div className="register-header">
+              <h2>会員登録</h2>
+              <p>プロフィールを入力してマッチングを始めましょう</p>
+            </div>
+
+            <form className="register-form" onSubmit={handleRegister}>
+              <div className="form-section">
+                <h3>基本情報 <span className="required">必須</span></h3>
+
+                <div className="form-group">
+                  <label>ニックネーム</label>
+                  <input
+                    type="text"
+                    value={userProfile.nickname}
+                    onChange={(e) => setUserProfile({ ...userProfile, nickname: e.target.value })}
+                    placeholder="表示名を入力"
+                    maxLength={20}
+                    required
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>性別</label>
+                  <div className="radio-group">
+                    {['男性', '女性', 'その他'].map(g => (
+                      <label key={g} className={`radio-option ${userProfile.gender === g ? 'selected' : ''}`}>
+                        <input
+                          type="radio"
+                          name="gender"
+                          value={g}
+                          checked={userProfile.gender === g}
+                          onChange={(e) => setUserProfile({ ...userProfile, gender: e.target.value })}
+                        />
+                        <span>{g}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="form-group">
+                  <label>都道府県</label>
+                  <select
+                    value={userProfile.prefecture}
+                    onChange={(e) => setUserProfile({ ...userProfile, prefecture: e.target.value })}
+                    required
+                  >
+                    <option value="">選択してください</option>
+                    {prefectures.map(p => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>年代</label>
+                  <select
+                    value={userProfile.ageGroup}
+                    onChange={(e) => setUserProfile({ ...userProfile, ageGroup: e.target.value })}
+                  >
+                    <option value="">選択してください</option>
+                    {['10代', '20代', '30代', '40代', '50代', '60代以上'].map(a => (
+                      <option key={a} value={a}>{a}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="form-section">
+                <h3>仕事について <span className="optional">任意</span></h3>
+
+                <div className="form-group">
+                  <label>業界</label>
+                  <select
+                    value={userProfile.industry}
+                    onChange={(e) => setUserProfile({ ...userProfile, industry: e.target.value })}
+                  >
+                    <option value="">選択してください</option>
+                    {industries.map(i => (
+                      <option key={i} value={i}>{i}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>職種</label>
+                  <select
+                    value={userProfile.jobType}
+                    onChange={(e) => setUserProfile({ ...userProfile, jobType: e.target.value })}
+                  >
+                    <option value="">選択してください</option>
+                    {jobTypes.map(j => (
+                      <option key={j} value={j}>{j}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>経験年数</label>
+                  <select
+                    value={userProfile.experience}
+                    onChange={(e) => setUserProfile({ ...userProfile, experience: e.target.value })}
+                  >
+                    <option value="">選択してください</option>
+                    {['学生', '1年未満', '1〜3年', '3〜5年', '5〜10年', '10年以上'].map(e => (
+                      <option key={e} value={e}>{e}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label>自己紹介</label>
+                  <textarea
+                    value={userProfile.bio}
+                    onChange={(e) => setUserProfile({ ...userProfile, bio: e.target.value })}
+                    placeholder="趣味や興味のあること、仕事への想いなど..."
+                    maxLength={200}
+                    rows={3}
+                  />
+                  <span className="char-count">{userProfile.bio.length}/200</span>
+                </div>
+              </div>
+
+              <button type="submit" className="register-button">
+                登録してマッチング開始
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* My Page Screen */}
+        {screen === 'mypage' && isLoggedIn && result && typeData && (
+          <div className="mypage-screen">
             {/* Tab Navigation */}
-            <div className="result-tabs">
+            <div className="mypage-tabs">
               <button
-                className={`tab-button ${activeTab === 'overview' ? 'active' : ''}`}
-                onClick={() => setActiveTab('overview')}
+                className={`mypage-tab ${activeTab === 'profile' ? 'active' : ''}`}
+                onClick={() => setActiveTab('profile')}
               >
-                概要
+                <span className="tab-icon">👤</span>
+                プロフィール
               </button>
               <button
-                className={`tab-button ${activeTab === 'career' ? 'active' : ''}`}
-                onClick={() => setActiveTab('career')}
+                className={`mypage-tab ${activeTab === 'matching' ? 'active' : ''}`}
+                onClick={() => { setActiveTab('matching'); if (!showCandidates && matchCandidates.length === 0) fetchMatchCandidates(); }}
               >
-                キャリア
-              </button>
-              <button
-                className={`tab-button ${activeTab === 'matching' ? 'active' : ''}`}
-                onClick={() => setActiveTab('matching')}
-              >
+                <span className="tab-icon">💫</span>
                 マッチング
               </button>
               <button
-                className={`tab-button ${activeTab === 'talk' ? 'active' : ''}`}
+                className={`mypage-tab ${activeTab === 'talk' ? 'active' : ''}`}
                 onClick={() => setActiveTab('talk')}
               >
+                <span className="tab-icon">💬</span>
                 トーク
                 {totalUnread > 0 && <span className="tab-badge">{totalUnread}</span>}
               </button>
             </div>
 
-            {/* Tab Content */}
-            <div className="result-content">
-              {activeTab === 'overview' && (
-                <div className="tab-content overview-tab">
-                  <section className="content-section">
-                    <h3 className="section-title">
-                      <span className="section-icon">📋</span>
-                      あなたの特徴
-                    </h3>
-                    <p className="description-text">{typeData.description}</p>
-                  </section>
-
-                  <div className="two-column">
-                    <section className="content-section strength-card">
-                      <h3 className="section-title">
-                        <span className="section-icon positive">+</span>
-                        強み
-                      </h3>
-                      <ul className="trait-list">
-                        {typeData.strengths.map((s, i) => (
-                          <li key={i} className="trait-item positive">{s}</li>
-                        ))}
-                      </ul>
-                    </section>
-
-                    <section className="content-section weakness-card">
-                      <h3 className="section-title">
-                        <span className="section-icon negative">!</span>
-                        注意点
-                      </h3>
-                      <ul className="trait-list">
-                        {typeData.weaknesses.map((w, i) => (
-                          <li key={i} className="trait-item negative">{w}</li>
-                        ))}
-                      </ul>
-                    </section>
+            {/* Profile Tab */}
+            {activeTab === 'profile' && (
+              <div className="mypage-content profile-content">
+                <div className="profile-card">
+                  <div className="profile-header">
+                    <Avatar
+                      typeCode={result.type}
+                      gradientStart={typeData.gradientStart}
+                      gradientEnd={typeData.gradientEnd}
+                      size={100}
+                    />
+                    <div className="profile-info">
+                      <h2>{userProfile.nickname}</h2>
+                      <div className="profile-type">
+                        <span className="type-code">{result.type}</span>
+                        <span className="type-name">{typeData.name}</span>
+                      </div>
+                    </div>
                   </div>
 
-                  <section className="content-section advice-card">
-                    <h3 className="section-title">
-                      <span className="section-icon">💡</span>
-                      アドバイス
-                    </h3>
-                    <p className="advice-text">{typeData.advice}</p>
-                  </section>
+                  <div className="profile-details">
+                    <div className="detail-row">
+                      <span className="label">エリア</span>
+                      <span className="value">{userProfile.prefecture}</span>
+                    </div>
+                    <div className="detail-row">
+                      <span className="label">年代</span>
+                      <span className="value">{userProfile.ageGroup || '未設定'}</span>
+                    </div>
+                    {userProfile.industry && (
+                      <div className="detail-row">
+                        <span className="label">業界</span>
+                        <span className="value">{userProfile.industry}</span>
+                      </div>
+                    )}
+                    {userProfile.jobType && (
+                      <div className="detail-row">
+                        <span className="label">職種</span>
+                        <span className="value">{userProfile.jobType}</span>
+                      </div>
+                    )}
+                    {userProfile.experience && (
+                      <div className="detail-row">
+                        <span className="label">経験</span>
+                        <span className="value">{userProfile.experience}</span>
+                      </div>
+                    )}
+                  </div>
 
-                  <section className="content-section">
-                    <h3 className="section-title">
-                      <span className="section-icon">📊</span>
-                      スコア分布
-                    </h3>
-                    <div className="dimension-chart">
-                      {Object.entries(dimensions).map(([key, dim]) => {
-                        const score = result.scores[key]
-                        const percentage = getScorePercentage(key, score)
+                  {userProfile.bio && (
+                    <div className="profile-bio">
+                      <h4>自己紹介</h4>
+                      <p>{userProfile.bio}</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="type-summary-card">
+                  <h3>あなたのタイプ</h3>
+                  <p className="type-subtitle">{typeData.subtitle}</p>
+                  <p className="type-desc">{typeData.summary}</p>
+
+                  <div className="dimension-mini-chart">
+                    {Object.entries(dimensions).map(([key, dim]) => {
+                      const score = result.scores[key]
+                      const percentage = getScorePercentage(key, score)
+                      return (
+                        <div key={key} className="mini-dimension">
+                          <span className="dim-label">{dim.name}</span>
+                          <div className="dim-bar">
+                            <div
+                              className="dim-fill"
+                              style={{
+                                width: `${percentage}%`,
+                                background: dim.color
+                              }}
+                            />
+                          </div>
+                          <span className="dim-result" style={{ color: dim.color }}>
+                            {getDimensionResult(key, score)}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                <div className="quick-actions">
+                  <button
+                    className="action-card"
+                    onClick={() => { setActiveTab('matching'); fetchMatchCandidates(); }}
+                  >
+                    <span className="action-icon">💫</span>
+                    <span className="action-text">相性の良い人を探す</span>
+                  </button>
+                  <button
+                    className="action-card"
+                    onClick={() => setActiveTab('talk')}
+                  >
+                    <span className="action-icon">💬</span>
+                    <span className="action-text">トーク ({confirmedMatches.length})</span>
+                    {totalUnread > 0 && <span className="action-badge">{totalUnread}</span>}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Matching Tab */}
+            {activeTab === 'matching' && (
+              <div className="mypage-content matching-content">
+                {matchesLoading ? (
+                  <div className="loading-state">
+                    <div className="loading-spinner"></div>
+                    <p>相性の良い人を探しています...</p>
+                  </div>
+                ) : !showCandidates || matchCandidates.length === 0 ? (
+                  <div className="empty-matching">
+                    <div className="empty-icon">🔍</div>
+                    <h3>マッチング候補を探す</h3>
+                    <p>あなたと相性の良いビジネスパーソンを見つけましょう</p>
+                    <button className="find-btn" onClick={fetchMatchCandidates}>
+                      候補を探す
+                    </button>
+                  </div>
+                ) : (
+                  <div className="candidates-container">
+                    <div className="candidates-header">
+                      <h3>相性の良い候補 ({matchCandidates.length}人)</h3>
+                      <p>気になる相手を選んでトークを始めましょう</p>
+                    </div>
+
+                    <div className="candidates-list">
+                      {matchCandidates.map((candidate, i) => {
+                        const isSelected = selectedCandidates.some(c => c.id === candidate.id)
+                        const candidateType = resultTypes[candidate.type_code]
                         return (
-                          <div key={key} className="dimension-row">
-                            <div className="dimension-labels">
-                              <span className="dim-neg">{dim.negLabel}</span>
-                              <span className="dim-pos" style={{ color: dim.color }}>{dim.posLabel}</span>
-                            </div>
-                            <div className="dimension-bar">
-                              <div className="bar-track">
-                                <div className="bar-center"></div>
-                                <div
-                                  className="bar-indicator"
-                                  style={{
-                                    left: chartAnimated ? `${percentage}%` : '50%',
-                                    backgroundColor: dim.color
-                                  }}
-                                ></div>
+                          <div
+                            key={i}
+                            className={`candidate-card-rich ${isSelected ? 'selected' : ''}`}
+                            onClick={() => toggleCandidateSelection(candidate)}
+                          >
+                            <div className="candidate-select">
+                              <div className={`checkbox ${isSelected ? 'checked' : ''}`}>
+                                {isSelected && '✓'}
                               </div>
                             </div>
-                            <div className="dimension-value" style={{ color: dim.color }}>
-                              {getDimensionResult(key, score)}
+
+                            <div className="candidate-main">
+                              <div className="candidate-top">
+                                <div className="candidate-avatar">
+                                  <Avatar
+                                    typeCode={candidate.type_code}
+                                    gradientStart={candidateType?.gradientStart || '#6366F1'}
+                                    gradientEnd={candidateType?.gradientEnd || '#4F46E5'}
+                                    size={60}
+                                  />
+                                </div>
+                                <div className="candidate-header">
+                                  <div className="candidate-name-row">
+                                    <span className="name">{candidate.nickname}</span>
+                                    <span className="compatibility">{candidate.compatibility_score}%</span>
+                                  </div>
+                                  <div className="candidate-type-row">
+                                    <span className="type-badge">{candidate.type_code}</span>
+                                    <span className="type-name">{candidateType?.name}</span>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div className="candidate-details">
+                                <div className="detail-tags">
+                                  <span className="tag">{candidate.prefecture}</span>
+                                  <span className="tag">{candidate.gender}</span>
+                                  {candidate.age_group && <span className="tag">{candidate.age_group}</span>}
+                                  {candidate.industry && <span className="tag">{candidate.industry}</span>}
+                                  {candidate.job_type && <span className="tag">{candidate.job_type}</span>}
+                                </div>
+                                {candidateType && (
+                                  <p className="candidate-desc">{candidateType.subtitle}</p>
+                                )}
+                              </div>
+
+                              <div className="compatibility-reason">
+                                <span className="reason-label">相性ポイント</span>
+                                <span className="reason-text">
+                                  {candidate.compatibility_score === 100
+                                    ? '最高の相性！お互いの強みを活かせます'
+                                    : '良い相性！補完し合える関係です'}
+                                </span>
+                              </div>
                             </div>
                           </div>
                         )
                       })}
                     </div>
-                  </section>
-                </div>
-              )}
 
-              {activeTab === 'career' && career && (
-                <div className="tab-content career-tab">
-                  <section className="content-section">
-                    <h3 className="section-title">
-                      <span className="section-icon">🎯</span>
-                      適性のある職種
-                    </h3>
-                    <div className="role-tags">
-                      {career.idealRoles.map((role, i) => (
-                        <span key={i} className="role-tag">{role}</span>
-                      ))}
-                    </div>
-                  </section>
-
-                  <section className="content-section">
-                    <h3 className="section-title">
-                      <span className="section-icon">🗺️</span>
-                      キャリアロードマップ
-                    </h3>
-                    <div className="roadmap">
-                      {career.careerRoadmap.map((phase, i) => (
-                        <div key={i} className="roadmap-item">
-                          <div className="roadmap-timeline">
-                            <div className="timeline-dot" style={{ background: typeData.gradientStart }}></div>
-                            {i < career.careerRoadmap.length - 1 && <div className="timeline-line"></div>}
-                          </div>
-                          <div className="roadmap-content">
-                            <div className="roadmap-phase">{phase.phase}</div>
-                            <div className="roadmap-title">{phase.title}</div>
-                            <div className="roadmap-description">{phase.description}</div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-
-                  <section className="content-section">
-                    <h3 className="section-title">
-                      <span className="section-icon">🚀</span>
-                      獲得すべきスキル
-                    </h3>
-                    <div className="skills-list">
-                      {career.potentialSkills.map((skill, i) => (
-                        <div key={i} className={`skill-card priority-${skill.priority}`}>
-                          <div className="skill-header">
-                            <span className="skill-name">{skill.name}</span>
-                            <span className={`skill-priority ${skill.priority}`}>
-                              {skill.priority === 'high' ? '重要' : '推奨'}
-                            </span>
-                          </div>
-                          <p className="skill-description">{skill.description}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-                </div>
-              )}
-
-              {activeTab === 'matching' && (
-                <div className="tab-content matching-tab">
-                  <section className="content-section">
-                    <h3 className="section-title">
-                      <span className="section-icon">💫</span>
-                      マッチング
-                    </h3>
-                    <p className="section-description">
-                      あなたのタイプと相性の良いビジネスパーソンを探しましょう。<br />
-                      気になる相手を選んで、トークを始めましょう！
-                    </p>
-
-                    {!showCandidates ? (
-                      <div className="matching-start">
-                        <div className="matching-highlight">NEW! おすすめ機能</div>
-                        <div className="matching-start-icon">🔍</div>
-                        <p>下のボタンをタップして<br />相性の良い相手を探しましょう</p>
-                        <button
-                          className="find-matches-btn"
-                          onClick={fetchMatchCandidates}
-                          disabled={matchesLoading}
-                        >
-                          {matchesLoading ? (
-                            <>
-                              <span className="loading-spinner-small"></span>
-                              検索中...
-                            </>
-                          ) : (
-                            <>
-                              <span>🔍</span>
-                              相手を探す
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="candidates-section">
-                        <p className="candidates-instruction">
-                          気になる相手を選択して「決定」を押してください
-                        </p>
-
-                        {matchCandidates.length > 0 ? (
-                          <>
-                            <div className="candidates-list">
-                              {matchCandidates.map((candidate, i) => {
-                                const isSelected = selectedCandidates.some(c => c.id === candidate.id)
-                                return (
-                                  <div
-                                    key={i}
-                                    className={`candidate-card ${isSelected ? 'selected' : ''}`}
-                                    onClick={() => toggleCandidateSelection(candidate)}
-                                  >
-                                    <div className="candidate-checkbox">
-                                      {isSelected ? '✓' : ''}
-                                    </div>
-                                    <div className="candidate-avatar">
-                                      <Avatar
-                                        typeCode={candidate.type_code}
-                                        gradientStart={resultTypes[candidate.type_code]?.gradientStart || '#6366F1'}
-                                        gradientEnd={resultTypes[candidate.type_code]?.gradientEnd || '#4F46E5'}
-                                        size={70}
-                                      />
-                                    </div>
-                                    <div className="candidate-info">
-                                      <div className="candidate-name">{candidate.nickname}</div>
-                                      <div className="candidate-type">
-                                        <span className="type-badge-small">{candidate.type_code}</span>
-                                        <span>{resultTypes[candidate.type_code]?.name}</span>
-                                      </div>
-                                      <div className="candidate-meta">
-                                        <span>{candidate.prefecture}</span>
-                                        <span>{candidate.gender}</span>
-                                        {candidate.age_group && <span>{candidate.age_group}</span>}
-                                      </div>
-                                    </div>
-                                    <div className="candidate-compatibility">
-                                      <span className="compatibility-score">{candidate.compatibility_score}%</span>
-                                      <span className="compatibility-label">相性</span>
-                                    </div>
-                                  </div>
-                                )
-                              })}
-                            </div>
-
-                            <div className="candidates-actions">
-                              <button
-                                className="cancel-btn"
-                                onClick={() => { setShowCandidates(false); setSelectedCandidates([]); }}
-                              >
-                                キャンセル
-                              </button>
-                              <button
-                                className="confirm-btn"
-                                onClick={confirmMatches}
-                                disabled={selectedCandidates.length === 0}
-                              >
-                                決定 ({selectedCandidates.length}人)
-                              </button>
-                            </div>
-                          </>
-                        ) : (
-                          <div className="no-candidates">
-                            <p>現在マッチする相手が見つかりませんでした</p>
-                            <button
-                              className="retry-btn"
-                              onClick={() => { setShowCandidates(false); }}
-                            >
-                              戻る
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </section>
-
-                  {typeData.compatibility && (
-                    <section className="content-section">
-                      <h3 className="section-title">
-                        <span className="section-icon">✨</span>
-                        相性の良いタイプ
-                      </h3>
-                      <div className="compat-cards">
-                        {typeData.compatibility.best.map((type, i) => (
-                          <div key={i} className="compat-card best">
-                            <div className="compat-type-code">{type}</div>
-                            <div className="compat-type-name">{resultTypes[type]?.name || type}</div>
-                            <div className="compat-label">最高の相性</div>
-                          </div>
-                        ))}
-                        {typeData.compatibility.good.map((type, i) => (
-                          <div key={i} className="compat-card good">
-                            <div className="compat-type-code">{type}</div>
-                            <div className="compat-type-name">{resultTypes[type]?.name || type}</div>
-                            <div className="compat-label">良い相性</div>
-                          </div>
-                        ))}
-                      </div>
-                    </section>
-                  )}
-                </div>
-              )}
-
-              {activeTab === 'talk' && (
-                <div className="tab-content talk-tab">
-                  <section className="content-section">
-                    <h3 className="section-title">
-                      <span className="section-icon">💬</span>
-                      トーク
-                    </h3>
-
-                    {confirmedMatches.length > 0 ? (
-                      <div className="talk-list">
-                        {confirmedMatches.map((match, i) => (
-                          <div
-                            key={i}
-                            className="talk-card"
-                            onClick={() => handleOpenChat(match)}
-                          >
-                            <div className="talk-avatar">
-                              <Avatar
-                                typeCode={match.type_code}
-                                gradientStart={resultTypes[match.type_code]?.gradientStart || '#6366F1'}
-                                gradientEnd={resultTypes[match.type_code]?.gradientEnd || '#4F46E5'}
-                                size={60}
-                              />
-                            </div>
-                            <div className="talk-info">
-                              <div className="talk-name">{match.nickname}</div>
-                              <div className="talk-type">
-                                {resultTypes[match.type_code]?.name}
-                              </div>
-                            </div>
-                            {unreadCounts[match.matchId] > 0 && (
-                              <div className="talk-unread">{unreadCounts[match.matchId]}</div>
-                            )}
-                            <div className="talk-arrow">›</div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="no-talks">
-                        <div className="no-talks-icon">💬</div>
-                        <p>まだトーク相手がいません</p>
-                        <p className="no-talks-hint">
-                          「マッチング」タブで相手を探して<br />トークを始めましょう！
-                        </p>
-                        <button
-                          className="go-matching-btn"
-                          onClick={() => setActiveTab('matching')}
-                        >
-                          マッチングへ
+                    {selectedCandidates.length > 0 && (
+                      <div className="selection-bar">
+                        <span>{selectedCandidates.length}人選択中</span>
+                        <button className="confirm-btn" onClick={confirmMatches}>
+                          この人とトークする
                         </button>
                       </div>
                     )}
-                  </section>
-                </div>
-              )}
-            </div>
-
-            {/* Action Buttons */}
-            <div className="result-actions">
-              <div className="share-container">
-                <button
-                  className="action-button share-button"
-                  onClick={() => setShowShareMenu(!showShareMenu)}
-                >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <circle cx="18" cy="5" r="3"/>
-                    <circle cx="6" cy="12" r="3"/>
-                    <circle cx="18" cy="19" r="3"/>
-                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
-                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
-                  </svg>
-                  シェア
-                </button>
-                {showShareMenu && (
-                  <div className="share-menu">
-                    <button onClick={() => handleShare('twitter')} className="share-option twitter">X (Twitter)</button>
-                    <button onClick={() => handleShare('facebook')} className="share-option facebook">Facebook</button>
-                    <button onClick={() => handleShare('line')} className="share-option line">LINE</button>
                   </div>
                 )}
               </div>
+            )}
 
-              <button className="action-button download-button" onClick={handleDownloadPDF}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                  <polyline points="7 10 12 15 17 10"/>
-                  <line x1="12" y1="15" x2="12" y2="3"/>
-                </svg>
-                保存
-              </button>
-
-              <button className="action-button restart-button" onClick={handleRestart}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <polyline points="23 4 23 10 17 10"/>
-                  <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-                </svg>
-                やり直す
-              </button>
-            </div>
+            {/* Talk Tab */}
+            {activeTab === 'talk' && (
+              <div className="mypage-content talk-content">
+                {confirmedMatches.length === 0 ? (
+                  <div className="empty-talk">
+                    <div className="empty-icon">💬</div>
+                    <h3>まだトーク相手がいません</h3>
+                    <p>マッチングタブで相手を見つけましょう</p>
+                    <button className="find-btn" onClick={() => { setActiveTab('matching'); fetchMatchCandidates(); }}>
+                      相手を探す
+                    </button>
+                  </div>
+                ) : (
+                  <div className="talk-list">
+                    {confirmedMatches.map((match, i) => {
+                      const matchType = resultTypes[match.type_code]
+                      return (
+                        <div
+                          key={i}
+                          className="talk-item"
+                          onClick={() => handleOpenChat(match)}
+                        >
+                          <div className="talk-avatar">
+                            <Avatar
+                              typeCode={match.type_code}
+                              gradientStart={matchType?.gradientStart || '#6366F1'}
+                              gradientEnd={matchType?.gradientEnd || '#4F46E5'}
+                              size={56}
+                            />
+                          </div>
+                          <div className="talk-info">
+                            <div className="talk-name">{match.nickname}</div>
+                            <div className="talk-meta">
+                              <span className="talk-type">{matchType?.name}</span>
+                              <span className="talk-compat">相性 {match.compatibility_score}%</span>
+                            </div>
+                          </div>
+                          {unreadCounts[match.matchId] > 0 && (
+                            <div className="unread-badge">{unreadCounts[match.matchId]}</div>
+                          )}
+                          <div className="talk-arrow">›</div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
@@ -1005,26 +1052,21 @@ function App() {
         {screen === 'chat' && activeChat && (
           <div className="chat-screen">
             <div className="chat-header">
-              <button className="chat-back-btn" onClick={handleBackToResult}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M19 12H5M12 19l-7-7 7-7"/>
-                </svg>
+              <button className="back-btn" onClick={handleBackToMypage}>
+                ← 戻る
               </button>
-              <div className="chat-user-info">
-                <span className="chat-user-name">{activeChat.nickname}</span>
-                <span className="chat-user-type">
-                  {activeChat.type_code} - {resultTypes[activeChat.type_code]?.name}
+              <div className="chat-partner">
+                <span className="partner-name">{activeChat.nickname}</span>
+                <span className="partner-type">
+                  {resultTypes[activeChat.type_code]?.name} | 相性 {activeChat.compatibility_score}%
                 </span>
-              </div>
-              <div className="chat-compatibility">
-                相性 {activeChat.compatibility_score}%
               </div>
             </div>
 
             <div className="chat-messages">
               {chatLoading ? (
                 <div className="chat-loading">
-                  <div className="loading-spinner-small"></div>
+                  <div className="loading-spinner"></div>
                 </div>
               ) : messages.length === 0 ? (
                 <div className="chat-empty">
@@ -1047,28 +1089,26 @@ function App() {
               <div ref={messagesEndRef} />
             </div>
 
-            <form className="chat-input-form" onSubmit={handleSendMessage}>
+            <form className="chat-form" onSubmit={handleSendMessage}>
               <input
                 type="text"
                 value={newMessage}
                 onChange={(e) => setNewMessage(e.target.value)}
                 placeholder="メッセージを入力..."
-                className="chat-input"
               />
-              <button type="submit" className="chat-send-btn" disabled={!newMessage.trim()}>
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <line x1="22" y1="2" x2="11" y2="13"/>
-                  <polygon points="22 2 15 22 11 13 2 9 22 2"/>
-                </svg>
+              <button type="submit" disabled={!newMessage.trim()}>
+                送信
               </button>
             </form>
           </div>
         )}
       </main>
 
-      <footer className="footer">
-        <p>BizType 32 - Business Personality Assessment</p>
-      </footer>
+      {!isLoggedIn && screen !== 'chat' && (
+        <footer className="footer">
+          <p>BizType 32 - Work Values Matching</p>
+        </footer>
+      )}
     </div>
   )
 }

@@ -26,6 +26,10 @@ db.exec(`
     gender TEXT NOT NULL,
     prefecture TEXT NOT NULL,
     age_group TEXT,
+    industry TEXT,
+    job_type TEXT,
+    experience TEXT,
+    bio TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
@@ -125,7 +129,7 @@ app.use(express.json());
 // Register new user
 app.post('/api/users', (req, res) => {
   try {
-    const { nickname, gender, prefecture, ageGroup } = req.body;
+    const { nickname, gender, prefecture, ageGroup, industry, jobType, experience, bio } = req.body;
 
     if (!nickname || !gender || !prefecture) {
       return res.status(400).json({ error: 'Missing required fields' });
@@ -134,11 +138,11 @@ app.post('/api/users', (req, res) => {
     const id = uuidv4();
 
     const stmt = db.prepare(`
-      INSERT INTO users (id, nickname, gender, prefecture, age_group)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO users (id, nickname, gender, prefecture, age_group, industry, job_type, experience, bio)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
 
-    stmt.run(id, nickname, gender, prefecture, ageGroup || null);
+    stmt.run(id, nickname, gender, prefecture, ageGroup || null, industry || null, jobType || null, experience || null, bio || null);
 
     res.json({ success: true, userId: id });
   } catch (error) {
@@ -247,14 +251,14 @@ app.get('/api/matches/:userId', (req, res) => {
     // Find matching users (excluding self)
     const placeholders = compatibleTypes.map(() => '?').join(',');
     const matchStmt = db.prepare(`
-      SELECT u.id, u.nickname, u.gender, u.prefecture, u.age_group, r.type_code,
+      SELECT u.id, u.nickname, u.gender, u.prefecture, u.age_group, u.industry, u.job_type, u.experience, u.bio, r.type_code,
              CASE WHEN r.type_code IN (${compat.best.map(() => '?').join(',')}) THEN 100 ELSE 75 END as compatibility_score
       FROM users u
       JOIN results r ON u.id = r.user_id
       WHERE r.type_code IN (${placeholders})
         AND u.id != ?
       ORDER BY compatibility_score DESC, RANDOM()
-      LIMIT 3
+      LIMIT 10
     `);
 
     const matches = matchStmt.all(...compat.best, ...compatibleTypes, userId);
@@ -407,7 +411,7 @@ app.get('/api/admin/results', (req, res) => {
     const { total } = countStmt.get();
 
     const stmt = db.prepare(`
-      SELECT r.*, u.nickname, u.gender, u.prefecture
+      SELECT r.*, u.nickname, u.gender, u.prefecture, u.age_group, u.industry, u.job_type, u.experience, u.bio
       FROM results r
       LEFT JOIN users u ON r.user_id = u.id
       ORDER BY r.created_at DESC
